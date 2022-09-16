@@ -20,7 +20,7 @@ class BackendInterface:
     async def connect(self):
         async with self.session.get(self.service_url, headers=self.headers) as resp:
             filtered = self.session.cookie_jar.filter_cookies(self.service_url)
-            self.csrftoken = None#filtered.get("csrftoken")
+            self.csrftoken = filtered.get("csrftoken")
 
 
     async def user_is_banned(self, user: User) -> bool:

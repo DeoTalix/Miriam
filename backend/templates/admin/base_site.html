@@ -1,0 +1,16 @@
+{% extends "admin/base.html" %}
+
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | {{ site_title|default:_('Django site admin') }}{% endblock %}
+
+{% block branding %}
+<h1 id="site-name"><a href="{% url 'admin:index' %}">{{ site_header|default:_('Django administration') }}</a></h1>
+{% endblock %}
+
+{% block nav-global %}
+<a href="/logs.zip">
+    <div style="width: fit-content; border: 1px solid; border-radius: 50px; padding: 5px 15px; color: black; background: yellow; font-size: 11px; text-transform: uppercase;">
+        Выгрузить логи
+    </div>
+</a>
+{{ block.super }}
+{% endblock %}

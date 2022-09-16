@@ -17,7 +17,7 @@ from .buttons import (
     btn_balance,
     btn_balance_accept,
 )
-from .requests import BackendInterface
+from .requests_db import BackendInterface
 
 
 
@@ -173,7 +173,7 @@ async def request_payment_status_loop(bill, user, state, lifetime):
 
         async with state.proxy() as data:
             if data.get("wait_for_status", False) == False:
-                # если await_status == False значит диалог перезапущен
+                # если await_status == False, значит, диалог перезапущен
                 return
     
         bill = await request_payment_status(bill.bill_id)
@@ -212,7 +212,7 @@ async def request_payment_status_loop(bill, user, state, lifetime):
 
                 break
 
-            case _:
+            case "WAITING":
                 text = "Счет выставлен, ожидает оплаты"
                 log.debug(f"{text} ({user.first_name}, {user.id})")
                 
@@ -220,6 +220,11 @@ async def request_payment_status_loop(bill, user, state, lifetime):
                     await wait_for(sleep(100), timeout=60)          
                 except TimeoutError:
                     pass
+
+            case _:
+                text = f"Неожиданный статус оплаты. {bill.status}"
+                log.warning(f"{text} ({user.first_name}, {user.id})")
+
 
     await state.finish()
     await init_conversation(user)
@@ -247,6 +252,20 @@ async def accept_balance_callback(callback_query: types.CallbackQuery, state: FS
             amount = data["amount"]
             bill = await request_bill(amount)
             data["bill"] = bill
+
+        # --- Раскоментить для тестовой записи платежа в базу ---
+        # balance_updated = await bi.update_customer_balance(user, bill)
+        # if balance_updated == False:
+        #     text = f"Не удалось обновить баланс. Сообщение отправлено в службу поддержки."
+        #     await bot.send_message(user.id, text)
+        # else:
+        #     customer = await bi.get_customer(user)
+        #     text = f"Баланс успешно обновлен. На вашем счету {customer['balance']} руб."
+        #     await bot.send_message(user.id, text)
+
+        # bill_created = await bi.create_bill(user, bill)
+        # if bill_created == False:
+        #     log.error(f"Не удалось сохранить счет в базу данных. (user_id: {user.id}, bill_id: {bill.bill_id}")
 
         btn_bill_link = types.InlineKeyboardButton('Ссылка на оплату счета', url=bill.pay_url, callback_data='btn_bill_link')
         btn_bill_verify = types.InlineKeyboardButton('Статус платежа', callback_data='btn_bill_verify')
@@ -301,6 +320,13 @@ async def verify_bill_callback(callback_query: types.CallbackQuery, state: FSMCo
 
         bill = await request_payment_status(bill.bill_id)
 
+        # bill_status = {
+        #     "WAITING"   : "Счет выставлен, ожидает оплаты",
+        #     "PAID"      : "Счет оплачен",
+        #     "REJECTED"  : "Счет отклонен",
+        #     "EXPIRED"   : "Время жизни счета истекло. Счет не оплачен"
+        # }.get(bill.status, f"Неожиданный статус оплаты {bill.status}.")
+
         match bill.status:
             case "PAID":
                 text = "Счет оплачен!"
@@ -322,30 +348,37 @@ async def verify_bill_callback(callback_query: types.CallbackQuery, state: FSMCo
                 await state.finish()
                 await init_conversation(user)
 
+                return
+
             case "REJECTED":
                 text = "Счет отклонен."
                 await bot.send_message(user.id, text)
                 log.debug(f"{text} ({user.first_name}, {user.id}")
+
+                await state.finish()
+                await init_conversation(user)
+
+                return
              
             case "EXPIRED":
                 text = "Время жизни счета истекло. Счет не оплачен."
                 await bot.send_message(user.id, text)
                 log.debug(f"{text} ({user.first_name}, {user.id})")
 
-            case _:
+                await state.finish()
+                await init_conversation(user)
+
+                return
+
+            case "WAITING":
                 text = "Счет выставлен, ожидает оплаты"
                 log.debug(f"{text} ({user.first_name}, {user.id})")
+                await bot.send_message(user.id, text)
 
-        bill_status = {
-            "WAITING"   : "Счет выставлен, ожидает оплаты",
-            "PAID"      : "Счет оплачен",
-            "REJECTED"  : "Счет отклонен",
-            "EXPIRED"   : "Время жизни счета истекло. Счет не оплачен"
-        }[bill.status]
-
-        text = f"Статус платежа \"{bill_status}\""
-        await bot.send_message(user.id, text)
-        log.debug(text)
+            case _:
+                text = f"Неожиданный статус оплаты {bill.status}."
+                log.warning(f"{text} ({user.first_name}, {user.id})")
+                await bot.send_message(user.id, text)
 
     except Exception as e:
         log.exception(e)

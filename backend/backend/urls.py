@@ -16,10 +16,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 
-from .views import home
+from .views import (
+    home, 
+    get_logs_zip, 
+    get_customers_csv,
+    get_bills_csv,
+)
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("", home),
+    path("logs.zip", get_logs_zip),
+    path("customers.csv", get_customers_csv),
+    path("bills.csv", get_bills_csv),
     path('customers/', include("customers.urls"))
 ]

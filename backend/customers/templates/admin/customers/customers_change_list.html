@@ -1,0 +1,12 @@
+{% extends 'admin/change_list.html' %}
+
+{% block object-tools %}
+{{ block.super }}
+
+<a href="/customers.csv">
+    <div style="width: fit-content; border: 1px solid; border-radius: 50px; padding: 5px 15px; background: yellow; font-size: 11px; text-transform: uppercase;">
+        Выгрузить клиентов
+    </div>
+</a>
+
+{% endblock object-tools %}

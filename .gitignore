@@ -1,7 +1,9 @@
 __pycache__/
 venv/
+customers/migrations/
+TODO.md
 .git
 .env
 *.log
-*.txt
 *.pdf
+*.sqlite3
